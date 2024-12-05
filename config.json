@@ -1,0 +1,5 @@
+{
+    "key_file": "key.key",
+    "encryption_algorithm": "AES-256",
+    "iv_length": 16
+}
