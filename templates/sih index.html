@@ -1,0 +1,338 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Messaging System</title>
+</head>
+<body>
+    <h1>Secure Messaging System</h1>
+    <form id="encrypt-form">
+        <label for="message">Enter Message:</label>
+        <input type="text" id="message" name="message" required>
+        <button type="submit">Encrypt and Send</button>
+    </form>
+    <h3>Encrypted Message:</h3>
+    <p id="encrypted-message">
+        {{ encrypted_message }}
+    </p>
+    <h3>Decrypted Message from Server:</h3>
+    <p id="decrypted-message">
+        {{ decrypted_message }}
+    </p>
+
+   
+    <script>
+       
+        document.getElementById('encrypt-form').addEventListener('submit', function(event) {
+            event.preventDefault(); 
+
+            const message = document.getElementById('message').value;
+            
+            
+            const encryptedMessage = message.split('').reverse().join('');  
+
+           
+            document.getElementById('encrypted-message').textContent = encryptedMessage;
+
+            
+            fetch('http://192.168.216.148:5000/receive_message', {
+                method: 'POST',
+                body: new URLSearchParams({ encrypted_message: encryptedMessage }),
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+            })
+            .then(response => response.text())
+            .then(data => {
+                
+                document.getElementById('decrypted-message').innerHTML = data;
+            });
+        });
+    </script>
+</body>
+</html>
+ -->
+
+
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Messaging System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #dfdddd;
+            color: #333;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            width: 100%;
+            max-width: 1000px;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        form {
+            margin-bottom: 30px;
+        }
+        label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: block;
+        }
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+        button {
+            background-color: #3498db;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .message-display {
+            background: #ecf0f1;
+            border: 1px solid #dcdde1;
+            border-radius: 5px;
+            padding: 15px;
+            font-size: 1rem;
+            word-wrap: break-word;
+            margin-bottom: 15px;
+        }
+        .message-display strong {
+            color: #2980b9;
+        }
+        .log-section {
+            margin-top: 30px;
+        }
+        .log-section h3 {
+            margin-bottom: 10px;
+        }
+        .log-list {
+            max-height: 150px;
+            overflow-y: auto;
+            background: #ffffff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        .log-list li {
+            margin-bottom: 10px;
+        }
+    </style>
+    <!-- Include CryptoJS for AES Encryption -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.0.0-beta.1/jsencrypt.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Secure Messaging System</h1>
+        <form id="encrypt-form">
+            <label for="message">Enter Message:</label>
+            <input type="text" id="message" name="message" placeholder="Type your message here..." required>
+            <div class="chart-section">
+                <h3>Encryption Strength Comparison</h3>
+                <canvas id="encryption-chart" width="400" height="200"></canvas>
+            </div>
+            <label for="algorithm">Select Encryption Algorithm:</label>
+            <select id="algorithm" name="algorithm">
+                <option value="reverse">Reverse</option>
+                <option value="base64">Base64</option>
+                <option value="aes">AES</option>
+                <option value="rsa">RSA</option>
+            </select>
+
+            <button type="submit">Encrypt and Send</button>
+            <p id="warning-message" style="color: red; font-weight: bold; display: none;"></p>
+        </form>
+
+        <h3>Encrypted Message:</h3>
+        <div id="encrypted-message" class="message-display">No message yet.</div>
+
+        <h3>Decrypted Message from Server:</h3>
+        <div id="decrypted-message" class="message-display">No message yet.</div>
+
+        <div class="log-section">
+            <h3>Encryption Logs:</h3>
+            <ul id="encryption-logs" class="log-list"></ul>
+        </div>
+        
+    </div>
+
+   
+
+    <script>
+        const logs = [];
+
+        document.getElementById('encrypt-form').addEventListener('submit', function(event) {
+            event.preventDefault(); // Prevent form submission
+
+            const message = document.getElementById('message').value;
+            const algorithm = document.getElementById('algorithm').value;
+
+            let encryptedMessage = '';
+
+            // Encryption logic based on selected algorithm
+            if (algorithm === 'reverse') {
+                encryptedMessage = message.split('').reverse().join('');
+            } else if (algorithm === 'base64') {
+                encryptedMessage = btoa(message); // Base64 encoding
+            } else if (algorithm === 'aes') {
+                const passphrase = "securekey"; // Key for AES encryption
+                encryptedMessage = CryptoJS.AES.encrypt(message, passphrase).toString();
+            } else if (algorithm === 'rsa') {
+                const rsaEncryptor = new JSEncrypt();
+                rsaEncryptor.setPublicKey(`
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxzdQXZDkHIeDmrh/Nlw7
+OIXrgdIhgpVJDYPA1dVXZvwo1WVi1S7wJpP8hy0zclWDy0is0ACdNWipx1mPRsjy
+pfvC/ZKhzh3x0BqI1OxcaBpBUuQaTZo6ChDyoas7Wk4hew96hj+mXSSdAwqWh1uJ
+DyFTGITLDjNUZJ5qO1qFZCav6Bu0jzxwBJgSu6za7uylrsKdMm3iYUT/VYT1HJzw
+MjgwAaJErP/paRvl1JU9VLsxK8zApZqoLwWQ7jVJAhAKEiK93VDndCsPf4otIyPw
+TpbdKXmevMYeFqTB/e85Tn4YNGgapgqEAnLUgpIlk+vGpwXJAX+7htP1BiMNeGt7
+rwIDAQAB`);
+
+                const encryptedMessageRSA = rsaEncryptor.encrypt(message);
+
+                if (encryptedMessageRSA) {
+                    encryptedMessage = encryptedMessageRSA;
+                } else {
+                    alert("RSA Encryption failed!");
+                    return;
+                }
+            }
+
+            // Display the encrypted message
+            document.getElementById('encrypted-message').textContent = encryptedMessage;
+
+            // Save log
+            logs.push({ message, algorithm, encryptedMessage });
+            updateLogs();
+
+            // Send encrypted message to the server
+            fetch('http://10.1.145.87:5000/receive_message', {
+                method: 'POST',
+                body: new URLSearchParams({
+                    encrypted_message: encryptedMessage,
+                    algorithm: algorithm
+                }),
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+            })
+            .then(response => response.text())
+            .then(data => {
+                // Display the decrypted message from the server
+                document.getElementById('decrypted-message').textContent = data;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }); 
+
+
+        function updateLogs() {
+            const logList = document.getElementById('encryption-logs');
+            logList.innerHTML = logs.map(log => `<li><strong>${log.algorithm}:</strong> ${log.encryptedMessage}</li>`).join('');
+        }
+
+        const encryptionData = {
+    labels: ['Reverse', 'Base64', 'AES', 'RSA'],
+    datasets: [
+        {
+            label: 'Security Level (1-10)',
+            data: [2, 3, 8, 10], // Relative security ratings
+            backgroundColor: ['#e74c3c', '#f39c12', '#2980b9', '#27ae60'],
+            borderWidth: 1,
+        },
+        {
+            label: 'Processing Speed (ms, lower is better)',
+            data: [1, 1, 3, 7], // Example time-to-process metrics
+            backgroundColor: ['#9b59b6', '#8e44ad', '#3498db', '#1abc9c'],
+            borderWidth: 1,
+        },
+    ],
+};
+
+const encryptionChart = new Chart(document.getElementById('encryption-chart'), {
+    type: 'bar',
+    data: encryptionData,
+    options: {
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 2,
+                },
+            },
+        },
+    },
+});
+
+
+// Update chart on algorithm selection
+// document.getElementById('algorithm').addEventListener('change', function () {
+//     const selectedAlgorithm = this.value;
+
+//     // Update chart colors to highlight the selected algorithm
+//     encryptionChart.data.datasets[0].backgroundColor = encryptionChart.data.labels.map(label =>
+//         label.toLowerCase() === selectedAlgorithm ? '#ff5722' : '#2980b9'
+//     );
+//     encryptionChart.data.datasets[1].backgroundColor = encryptionChart.data.labels.map(label =>
+//         label.toLowerCase() === selectedAlgorithm ? '#ffb74d' : '#1abc9c'
+//     );
+    
+//     encryptionChart.update();
+// });
+
+document.getElementById('algorithm').addEventListener('change', function () {
+    const selectedAlgorithm = this.value;
+
+    // Show warning if "Reverse" is selected
+    if (selectedAlgorithm === 'reverse') {
+        alert('Warning: "Reverse" is a very basic encryption method and is not secure for sensitive data.');
+    }
+
+    // Show a message if "RSA" is selected
+    if (selectedAlgorithm === 'rsa') {
+        alert('RSA is a highly secure algorithm and widely used for protecting sensitive data. It is considered one of the best encryption methods!');
+    }
+
+    // Update chart colors to highlight the selected algorithm
+    encryptionChart.data.datasets[0].backgroundColor = encryptionChart.data.labels.map(label =>
+        label.toLowerCase() === selectedAlgorithm ? '#ff5722' : '#2980b9'
+    );
+    encryptionChart.data.datasets[1].backgroundColor = encryptionChart.data.labels.map(label =>
+        label.toLowerCase() === selectedAlgorithm ? '#ffb74d' : '#1abc9c'
+    );
+
+    encryptionChart.update();
+});
+
+
+
+    </script>
+</body>
+</html>
